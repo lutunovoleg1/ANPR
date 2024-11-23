@@ -31,4 +31,3 @@ def ad_csv2image_label_structure(dir_path, eng2rus=True):
 
 
 ad_csv2image_label_structure('ocr_datasets/augmented_dataset')
-

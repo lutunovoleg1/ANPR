@@ -30,5 +30,5 @@ def augment_dataset(dir_path, dst_path, ratio, show_progress=True):
                     cv2.imwrite(os.path.join(dst_path, file, new_root + ext), transformed['image'])
                 del image
 
-augment_dataset('ocr_datasets/image-label_dataset', 'ocr_datasets/augmented_dataset', 1)
 
+augment_dataset('ocr_datasets/image-label_dataset', 'ocr_datasets/augmented_dataset', 1)

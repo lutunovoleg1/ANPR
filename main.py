@@ -62,7 +62,7 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, output
             dilated_box_number = frame[y1:y2, x1:x2]
 
             # licence plate image processing
-            points = find_rectangle_corners(dilated_box_number)
+            points = find_rectangle_corners(dilated_box_number, show_res=True)
             points = [points[0], points[1], points[3], points[2]]
             perspective_ret, dilated_box_number = apply_perspective_transform(dilated_box_number, points, show_results=False)
             if perspective_ret:
