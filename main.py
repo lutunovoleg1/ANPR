@@ -31,7 +31,7 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, show_f
         out_save = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_w, frame_h))
 
     if show_fps:  # Creating a moving average calculation window
-        fps_buffer = [0 for _ in range(100)]
+        fps_buffer = [0 for _ in range(50)]
 
     while cap.isOpened():
         if show_fps:
@@ -124,4 +124,4 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, show_f
     cv2.destroyAllWindows()
 
 
-auto_number_plate_rec('videos_for_test/3.MOV', save_video=False, show_video=True)
+auto_number_plate_rec('videos_for_test/1.mp4', save_video=False, show_video=True)
