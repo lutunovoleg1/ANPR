@@ -2,10 +2,12 @@ import cv2
 from ultralytics import YOLO
 import numpy as np
 import easyocr
+import time
 from main_utils import scale_image, find_rectangle_corners, apply_perspective_transform, prepare_result
 
 
-def auto_number_plate_rec(video_path, save_video=False, show_video=False, output_video_path="output_video.mp4"):
+def auto_number_plate_rec(video_path, save_video=False, show_video=False, show_fps=True,
+                          output_video_path="output_video.mp4"):
     # Initialize the models, if the device has cuda, it is installed automatically
     reader = easyocr.Reader(['ru'],
                             model_storage_directory='custom_EasyOCR/model',
@@ -23,12 +25,18 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, output
     frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    if save_video:  # Create VideoWriter object if option is True
+    if save_video:  # Create a buffer of the moving average
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out_save = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_w, frame_h))
 
+    if show_fps:  # Creating a moving average calculation window
+        fps_buffer = [0 for _ in range(100)]
+
     while cap.isOpened():
+        if show_fps:
+            time1 = time.time()
+
         ret, frame = cap.read()
         if not ret:  # If frame is not read, end the loop
             break
@@ -62,9 +70,9 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, output
             dilated_box_number = frame[y1:y2, x1:x2]
 
             # licence plate image processing
-            points = find_rectangle_corners(dilated_box_number, show_res=True)
+            points = find_rectangle_corners(dilated_box_number)
             points = [points[0], points[1], points[3], points[2]]
-            perspective_ret, dilated_box_number = apply_perspective_transform(dilated_box_number, points, show_results=False)
+            perspective_ret, dilated_box_number = apply_perspective_transform(dilated_box_number, points)
             if perspective_ret:
                 box_number = dilated_box_number
 
@@ -96,6 +104,12 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, output
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Exit when the keyboard is pressed
             break
 
+        if show_fps:
+            del fps_buffer[-1]  # Delete the last buffer element
+            fps_buffer.insert(0, float(time.time()) - float(time1))  # Add a new item to the buffer
+            cv2.putText(out, f'FPS: {round(len(fps_buffer) / sum(fps_buffer), 2)}', (0, int(out.shape[1] * 0.02)),
+                        cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
+
         if save_video:
             out = cv2.resize(out, (frame_w, frame_h), cv2.INTER_NEAREST)  # Change image size to input size
             out_save.write(out)
@@ -110,4 +124,4 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, output
     cv2.destroyAllWindows()
 
 
-auto_number_plate_rec('videos_for_test/IMG_6099.MOV', save_video=False, show_video=True)
+auto_number_plate_rec('videos_for_test/3.MOV', save_video=False, show_video=True)

@@ -18,15 +18,32 @@ def scale_image(input_image: np.ndarray, desired_width: int, interpolation: int)
     return cv2.resize(input_image, (desired_width, desired_height), interpolation)
 
 
-def find_rectangle_corners(input_img, show_res=True):
+def find_rectangle_corners(input_img: np.ndarray, show_results=False) -> list[list[int, int]]:
+    """This function takes an image of the license plate of the car and finds the coordinates of the points of
+    intersection of its borders
+
+    It takes an image as input and returns a list of points, where each point is represented as a list of two
+    coordinates (x, y). First, the function reduces the image size to a fixed size, then applies a two-sided filter,
+    determines the edges using the Sobel operator, and then determines the lines using the Hough transform.
+    Then it filters the lines by their location and finds the points where the lines intersect.
+    Finally, it resizes the intersection points to the original image size and returns them.
+
+    Args:
+        input_img: The input image of the license plate of the car.
+        show_results: A boolean value indicating whether to show the results of the function.
+
+    Returns:
+        A list of points, where each point is represented as a list of two coordinates (x, y).
+    """
+
     def filter_lines():
         """Categorizes detected vertical and horizontal lines into four groups based on
         their position relative to the image center.
 
-           The function processes two global lists of lines: v_lines (vertical lines) and h_lines (horizontal lines).
-           It determines whether each line is on the left or right side of the vertical center point,
-           and whether it is on the upper or lower side of the horizontal center point.
-           The categorized lines are stored in four separate lists:
+        The function processes two global lists of lines: v_lines (vertical lines) and h_lines (horizontal lines).
+        It determines whether each line is on the left or right side of the vertical center point,
+        and whether it is on the upper or lower side of the horizontal center point.
+        The categorized lines are stored in four separate lists:
 
            - Vertical lines on the left side of the center
            - Horizontal lines on the upper side of the center
@@ -84,7 +101,7 @@ def find_rectangle_corners(input_img, show_res=True):
         for horizontal and vertical lines and applies them to the line positions.
 
         Returns:
-        list: The updated list of line positions scaled to the original dimensions
+            list: The updated list of line positions scaled to the original dimensions
         """
         k_horizontal = [input_img.shape[0] / gray_h.shape[0], input_img.shape[1] / gray_h.shape[1]]
         k_vertical = [input_img.shape[0] / gray_v.shape[0], input_img.shape[1] / gray_v.shape[1]]
@@ -102,73 +119,103 @@ def find_rectangle_corners(input_img, show_res=True):
         return line_positions
 
     def find_intersection():
+        """Finds the intersection points between pairs of lines defined in the global variable line_positions.
+
+         The function checks for intersections between adjacent lines and saves the coordinates of the
+         intersection point to the global points list if an intersection is found.
+
+         Returns:
+            list: An updated list of points, where each entry contains the coordinates of the intersection point
+
+         Notes:
+            - It is assumed that line_positions, points and input_img are defined globally.
+            - Intersections are checked only for adjacent lines specified in line_positions.
+            - The coordinates of the intersection are rounded to the nearest integer values.
+            - Checking for coordinates going beyond the limits of the image
+            """
         for _i in range(len(line_positions)):
-            if not points[_i] and line_positions[_i] and line_positions[(_i + 1) % 4]:  # Если две соседние линии не пустые
+            # If the point does not exist and two adjacent lines exist
+            if not points[_i] and line_positions[_i] and line_positions[(_i + 1) % 4]:
                 line_1, line_2 = line_positions[_i][0], line_positions[(_i + 1) % 4][0]
                 x1_1, y1_1, x1_2, y1_2 = line_1[0]
                 x2_1, y2_1, x2_2, y2_2 = line_2[0]
-                m1, p1 = x1_2 - x1_1, y1_2 - y1_1  # Каноническся форма
+
+                m1, p1 = x1_2 - x1_1, y1_2 - y1_1  # Canonical form
                 m2, p2 = x2_2 - x2_1, y2_2 - y2_1
-                a1, b1, c1 = p1, -m1, -p1 * x1_1 + m1 * y1_1  # переход к параметрическому виду
+
+                a1, b1, c1 = p1, -m1, -p1 * x1_1 + m1 * y1_1  # Switching to a parametric form
                 a2, b2, c2 = p2, -m2, -p2 * x2_1 + m2 * y2_1
 
-                if all([m1, m2, p1, p2]):  # проверка 0
+                if all([m1, m2, p1, p2]):  # Arbitrary lines
                     bs2 = b2 - a2 / a1 * b1
-                    if bs2 != 0:  # Единственное решение
+                    if bs2 != 0:  # The only solution
                         cs2 = -c2 + a2 / a1 * c1
                         y = cs2 / bs2
                         x = (-c1 - b1 * y) / a1
-                elif (m1 == 0 and p2 == 0) or (m2 == 0 and p1 == 0):
-                    if p2 == 0:  # Считам что горизонатльная лини line 1
+
+                elif (m1 == 0 and p2 == 0) or (m2 == 0 and p1 == 0):  # Horizontal and vertical line or vice versa
+                    if p2 == 0:  # Consider that the horizontal line is line 1
                         y1_1 = y2_1
-                        x2_1 = x1_1  # тогда вертикальная line 2
+                        x2_1 = x1_1  # Then the vertical line is 2
                     x, y = x2_1, y1_1
-                elif m1 == 0 or m2 == 0:  # Если есть вертикальная линия
-                    if m2 == 0:  # Меняем местами считаем что вертикальная линия line_1
+
+                elif m1 == 0 or m2 == 0:  # If there is a vertical line
+                    if m2 == 0:  # Swapping places, we consider that the vertical line is line_1
                         x1_1, a2, b2, c2 = x2_1, a1, b1, c1
                     x = x1_1
                     y = (-a2 * x - c2) / b2
-                else:  # Если есть горизонтальная линия
-                    if p2 == 0:  # Меняем местами считаем что горизонтальная линия line_1
+
+                else:  # If there is a horizontal line
+                    if p2 == 0:  # Swapping places, we consider that the horizontal line is line_1
                         y1_1, a2, b2, c2 = y2_1, a1, b1, c1
                     y = y1_1
                     x = (-b2 * y - c2) / a2
 
-                if x <= input_img.shape[1] and y <= input_img.shape[1]:  # Входит ли пересечение в область изображения
+                # Checking the occurrence of an intersection in the image area
+                if x <= input_img.shape[1] and y <= input_img.shape[1]:
                     x, y = round(x), round(y)
                     points[_i] = [x, y]
         return points
 
     def refind_lines():
+        """Defines and restores lines in the image.
+
+        Checks for two intersection points and three lines. If the conditions are met, calculates the missing line based
+        on the coordinates of neighboring lines and their angles. Handles the case when the X-axis difference is zero.
+
+        Returns:
+            list: An updated list of line positions, where each position is represented as a list of coordinates.
+        """
+
         def back_rotate(_x_out_1, _y_out_1, _x_out_2, _y_out_2):
-            """Делаем условный поворот на 90 градусов против часовой стрелки, если поворот был совершен"""
+            """Make a conditional 90-degree counterclockwise turn if the turn has been made"""
             if _i in [1, 3]:
                 _x_out_1, _y_out_1 = _y_out_1, input_img.shape[0] - _x_out_1
                 _x_out_2, _y_out_2 = _y_out_2, input_img.shape[0] - _x_out_2
             return _x_out_1, _y_out_1, _x_out_2, _y_out_2
 
-        # Если существует 2 точки пересечения и 3 линии
         if sum(1 for val in points if val) == 2 and sum(1 for val in line_positions if val) == 3:
             for _i in range(len(line_positions)):
-                if not line_positions[_i]:
+                if not line_positions[_i]:  # Searching for a missing line
                     x1_1, y1_1, x1_2, y1_2 = line_positions[_i - 1][0][0]  # previous line
                     x2_1, y2_1, x2_2, y2_2 = line_positions[(_i + 1) % 4][0][0]  # next line
                     corner_1, corner_2 = points[(_i + 1) % 4].copy(), points[(_i + 2) % 4].copy()
 
-                    if _i in [1, 3]:  # Make a conditional 90 clockwise turn (only for the missing horizontal line)
+                    if _i in [1, 3]:  # Make a conditional 90 clockwise turn (only for the missing top and bottom lines)
                         y1_1, x1_1, y1_2, x1_2 = x1_1, input_img.shape[0] - y1_1, x1_2, input_img.shape[0] - y1_2
                         y2_1, x2_1, y2_2, x2_2 = x2_1, input_img.shape[0] - y2_1, x2_2, input_img.shape[0] - y2_2
                         corner_1[1], corner_1[0] = corner_1[0], input_img.shape[0] - corner_1[1]
                         corner_2[1], corner_2[0] = corner_2[0], input_img.shape[0] - corner_2[1]
 
-                    m1, p1 = x1_2 - x1_1, y1_2 - y1_1  # Каноническся форма
+                    m1, p1 = x1_2 - x1_1, y1_2 - y1_1  # Canonical form
                     m2, p2 = x2_2 - x2_1, y2_2 - y2_1
                     m3, p3 = corner_1[0] - corner_2[0], corner_1[1] - corner_2[1]
-                    a1, b1, c1 = p1, -m1, -p1 * x1_1 + m1 * y1_1  # переход к параметрическому виду
+
+                    a1, b1, c1 = p1, -m1, -p1 * x1_1 + m1 * y1_1  # transition to a parametric form
                     a2, b2, c2 = p2, -m2, -p2 * x2_1 + m2 * y2_1
                     a3, b3, c3 = p3, -m3, -p3 * corner_2[0] + m3 * corner_2[1]
 
-                    if b3 == 0:  # Если линия имеет нулевую разницу по оси х
+                    if b3 == 0:  # If the line has zero x-axis difference
                         if _i in [0, 3]:
                             x_out_1, x_out_2, y_out_1, y_out_2 = 0, 0, corner_1[1], corner_2[1]
                         else:
@@ -179,12 +226,13 @@ def find_rectangle_corners(input_img, show_res=True):
                                 x_out_1 = x_out_2 = input_img.shape[0]
                         line_positions[_i] = [[[*back_rotate(x_out_1, y_out_1, x_out_2, y_out_2)]]]
                         return line_positions
-                    elif a3 / b3 >= 0:  # От наклона зависит от какой линии будем брать прямую
+
+                    elif a3 / b3 > 0:  # The slope depends on which line we will take a straight line
                         a, b, c = a1, b1, c1
                     else:
                         a, b, c = a2, b2, c2
 
-                    if _i in [0, 3]:  # Определяем от какой границы будем строить линию
+                    if _i in [0, 3]:  # Determine which border we will build the line from
                         x_out_1 = 0
                     elif _i == 1:
                         x_out_1 = input_img.shape[0]
@@ -192,16 +240,15 @@ def find_rectangle_corners(input_img, show_res=True):
                         x_out_1 = input_img.shape[1]
                     y_out_1 = int((-a * x_out_1 - c) / b)
 
-                    # Параллельно переносим
-                    if _i in [0, 3]:  # Поиск х координаты
-                        x_out_2 = x_out_1 + abs(corner_1[0] - corner_2[0])
+                    # Transfer the found line in parallel
+                    dx = abs(corner_1[0] - corner_2[0])
+                    dy = abs(corner_1[1] - corner_2[1])
+                    if _i in [0, 3]:
+                        x_out_2 = x_out_1 + dx
+                        y_out_2 = y_out_1 + dy if a3 / b3 < 0 else y_out_1 - dy
                     else:
-                        x_out_2 = x_out_1 - abs(corner_1[0] - corner_2[0])
-
-                    if a3 / b3 <= 0:  # Поиск у координаты
-                        y_out_2 = y_out_1 + abs(corner_1[1] - corner_2[1])
-                    else:
-                        y_out_2 = y_out_1 - abs(corner_1[1] - corner_2[1])
+                        x_out_2 = x_out_1 - dx
+                        y_out_2 = y_out_1 - dy if a3 / b3 < 0 else y_out_1 + dy
 
                     line_positions[_i] = [[[*back_rotate(x_out_1, y_out_1, x_out_2, y_out_2)]]]
                     break
@@ -210,48 +257,49 @@ def find_rectangle_corners(input_img, show_res=True):
 
     img_copy = input_img.copy()
     img_copy = cv2.resize(img_copy, (150, 60), cv2.INTER_LINEAR)  # Get one size fits all
-    # Фильтрация изображения
+
+    # Image filtering
     gray = cv2.cvtColor(img_copy, cv2.COLOR_BGR2GRAY)
     gray_f = cv2.bilateralFilter(gray, d=11, sigmaColor=200, sigmaSpace=200)
 
-    # Изменяем разрешение для лучшего обнаружения вертикальной и горизонтальной линии номера
+    # Change the resolution for better detection of the vertical and horizontal line of the number plate
     gray_h = gray_f.copy()
     gray_v = cv2.resize(gray_f, None, fx=1, fy=2)
 
-    # Детекция краев
+    # Edge detection
     sobel_h = cv2.Sobel(src=gray_h, scale=1, delta=0, ddepth=cv2.CV_32F, dx=0, dy=1,
-                        ksize=3)  # Sobel Edge Detection on the Y axis
+                        ksize=3)
     sobel_h = cv2.convertScaleAbs(sobel_h)
-    sobel_h[:, :int(sobel_h.shape[0] * 0.2)] = 0
     sobel_v = cv2.Sobel(src=gray_v, scale=1, delta=0, ddepth=cv2.CV_32F, dx=1, dy=0,
-                        ksize=3)  # Sobel Edge Detection on the X axis
+                        ksize=3)
     sobel_v = cv2.convertScaleAbs(sobel_v)
-    # Урезаем часть изображения градиента
+
+    # Crop part of the gradient image to remove unnecessary gradients
     sobel_h[:, :int(sobel_h.shape[1] * 0.1)], sobel_h[:, int(sobel_h.shape[1] * 0.9):] = 0, 0
     sobel_v[:int(sobel_v.shape[0] * 0.2), :], sobel_v[int(sobel_v.shape[0] * 0.8):, :] = 0, 0
 
-    # Бинаризация производных
+    # Binarization of gradient images and noise removal
     _, thresh_h = cv2.threshold(sobel_h, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     thresh_h = cv2.morphologyEx(thresh_h, cv2.MORPH_ERODE, np.ones((2, 10)), iterations=1)
     _, thresh_v = cv2.threshold(sobel_v, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     thresh_v = cv2.morphologyEx(thresh_v, cv2.MORPH_ERODE, np.ones((5, 5)), iterations=1)
 
-    # Использование Hough Transform для нахождения линий
-    # Для собеля по у
+    # Using Hough Transform to find lines
     h_lines = cv2.HoughLinesP(thresh_h.astype(np.uint8), 1, np.pi / 180, threshold=30, minLineLength=30, maxLineGap=5)
-    # Для собеля по х
     v_lines = cv2.HoughLinesP(thresh_v.astype(np.uint8), 1, np.pi / 180, threshold=30, minLineLength=20, maxLineGap=5)
 
-    line_positions = filter_lines()  # Фильтрация линий
-    line_positions = original_line_shape()  # Вернуть оригинальный размер линий
-    points = [[] for _ in range(4)]  # left_top, right_top, right_bottom, left_bottom
-    points = find_intersection()  # Найти пересечения линий
-    line_positions = refind_lines()
-    points = find_intersection()  # Найти пересечения линий
+    line_positions = filter_lines()  # Classify lines by their location and search for lines of maximum
+    line_positions = original_line_shape()  # Resize the lines to the size of the input image
 
-    if show_res:  # show all results
+    # Finding the coordinates of the intersection of lines
+    points = [[] for _ in range(4)]
+    points = find_intersection()
+    line_positions = refind_lines()
+    points = find_intersection()
+
+    if show_results:  # show all results
         # Return input shape
-        img_copy = cv2.resize(img_copy, [input_img.shape[1], input_img.shape[0]], cv2.INTER_NEAREST)
+        img_copy = cv2.resize(img_copy, (input_img.shape[1], input_img.shape[0]), cv2.INTER_NEAREST)
         for i in range(len(line_positions)):  # show lines
             if line_positions[i] is not None:
                 if i == 0:
@@ -282,7 +330,7 @@ def find_rectangle_corners(input_img, show_res=True):
     return points
 
 
-def apply_perspective_transform(input_image: np.ndarray, points: list[list[int, int]], show_results=True) \
+def apply_perspective_transform(input_image: np.ndarray, points: list[list[int, int]], show_results=False) \
         -> tuple[bool, np.ndarray]:
     """Applies a perspective transformation to an image.
 
@@ -291,7 +339,7 @@ def apply_perspective_transform(input_image: np.ndarray, points: list[list[int, 
         points : A list of four points, where each point is represented as a list of two integers
         (x, y) that define the corners  of the region to be transformed.
         The points should be in the order: top-left,top-right, bottom-right, bottom-left.
-        show_results (bool): A flag indicating whether to display the transformed image. Defaults to True.
+        show_results (bool): A flag indicating whether to display the transformed image. Defaults to False.
 
     Returns:
         A tuple where the first element is a boolean indicating whether the transformation was successful (True)
@@ -302,7 +350,16 @@ def apply_perspective_transform(input_image: np.ndarray, points: list[list[int, 
         return False, input_image
 
     img_copy = input_image.copy()
-    in_points = np.array(points, dtype='float32')
+    points = np.array(points)
+    in_points = np.zeros((4, 2), dtype='float32')
+
+    points_sum = np.sum(points, axis=1)
+    in_points[0] = points[np.argmin(points_sum)]
+    in_points[3] = points[np.argmax(points_sum)]
+
+    points_dif = np.diff(points, axis=1)
+    in_points[1] = points[np.argmin(points_dif)]
+    in_points[2] = points[np.argmax(points_dif)]
 
     # Define the width and height
     top_left, top_right, bottom_left, bottom_right = in_points
@@ -362,11 +419,13 @@ def prepare_result(ocr_result: list[tuple[list, str, float]]) -> tuple[str, bool
                         text = text[:i] + num2char.get(text[i], text[i]) + text[i + 1:]
                     if text[i].isalpha():
                         counter += 1
+                    continue
                 if i in [1, 2, 3, 6, 7, 8]:  # Processing of numbers
                     if not text[i].isdigit():
                         text = text[:i] + char2num.get(text[i], text[i]) + text[i + 1:]
                     if text[i].isdigit():
                         counter += 1
+                    continue
             if counter == len(text):  # Checking the length after permutations
                 template_valid = True
         return text, template_valid, confs
