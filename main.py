@@ -9,12 +9,12 @@ from main_utils import scale_image, find_rectangle_corners, apply_perspective_tr
 
 def auto_number_plate_rec(video_path, save_video=False, show_video=False, show_fps=True,
                           output_video_path="output_video.mp4"):
-    # Initialize the models, if the device has cuda, it is installed automatically
+    # Initialize the nn_models, if the device has cuda, it is installed automatically
     reader = easyocr.Reader(['ru'],
-                            model_storage_directory='custom_EasyOCR/model',
-                            user_network_directory='custom_EasyOCR/user_network',
+                            model_storage_directory='nn_models/Easy_OCR/custom_EasyOCR/model',
+                            user_network_directory='nn_models/Easy_OCR/custom_EasyOCR/user_network',
                             recog_network='ru_numbers')
-    model = YOLO('segmentation_models/yolov8_n/weights/best.pt')
+    model = YOLO('nn_models/YOLO/yolov8_n/weights/best.pt')
     model.fuse()
 
     cap = cv2.VideoCapture(video_path)
@@ -125,4 +125,4 @@ def auto_number_plate_rec(video_path, save_video=False, show_video=False, show_f
     cv2.destroyAllWindows()
 
 
-auto_number_plate_rec('videos_for_test/1.mp4', save_video=False, show_video=True)
+auto_number_plate_rec('videos_for_test/IMG_6099.MOV', save_video=False, show_video=True)
