@@ -3,6 +3,7 @@ from ultralytics import YOLO
 import numpy as np
 import easyocr
 import time
+
 from main_utils import scale_image, find_rectangle_corners, apply_perspective_transform, prepare_result
 
 
