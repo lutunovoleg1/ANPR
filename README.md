@@ -1,5 +1,6 @@
 
 # Fire-smoke detection
+![1](https://shields.microej.com/badge/Python-3.11-blue)
 ![GitHub top language](https://img.shields.io/github/languages/top/artem-vol/Licence_plate_recognition)
 
 Automatic recognition of car license plates on video using YOLO and EasyOCR models. YOLO will be used for the object detection task, EasyOCR - for the optical character recognition task, and an algorithm has also been implemented that determines the coordinates of the license plate corners using an algorithm based on the Hough algorithm.
