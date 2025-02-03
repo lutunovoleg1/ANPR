@@ -1,5 +1,5 @@
 
-# Fire-smoke detection
+# Licence plate recognition
 ![1](https://shields.microej.com/badge/Python-3.11-blue)
 ![GitHub top language](https://img.shields.io/github/languages/top/artem-vol/Licence_plate_recognition)
 
