@@ -15,15 +15,18 @@ git clone git@github.com:artem-vol/Fire-smoke_detection.git
 pip install -r requirements.txt
 ```
 ## Usage
-Run inference.py to perform fire and smoke detection on a video.
+Run main.py to perform license plate recognition on video.
   
-You can change the following parameters of ```process_video_with_tracking``` function:
-- **model** (YOLO): A YOLO model object for detecting and tracking objects. 
-- **input_video_path** (str): Path to the input video file.
-- **show_video** (bool, True by default): Whether to display the annotated video.
-- **save_video** (bool, False by default): Whether to save the annotated video.
-- **output_video_path** (str, default is "output_video.mp4"): The path to the output video file if save_video is set to True.
+You can change the following parameters of ```auto_number_plate_rec``` function:
+- **video_path** (str): The path to the input video file. 
+- **save_video** (bool): If True, the processing result is saved to a video file. By default, False.
+- **show_video** (bool): If True, the processing result is displayed in the window. By default, False.
+- **show_fps** (bool): If True, the current FPS is displayed on the frame. By default, True.
+- **output_video_path** (str): The path to save the processed video. The default is "output_video.mp4".
 
-## Example
+## Examples
 
-![output_video_1 - Trim](https://github.com/user-attachments/assets/5046d34b-aa57-4924-bda3-2725fef9039d)
+![image](https://github.com/user-attachments/assets/cec7b933-d5f2-4e99-b790-657718e772bc)
+![image](https://github.com/user-attachments/assets/891af56a-bc8a-41dd-82f2-e25d376189f8)
+
+
