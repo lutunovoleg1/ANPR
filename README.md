@@ -8,8 +8,10 @@ Automatic recognition of car license plates on video using YOLO and EasyOCR mode
 ## Installation
 1. Make sure that you have Python version 3.11 installed.
 2. Clone the repository:
+
 ```
-git clone git@github.com:artem-vol/Fire-smoke_detection.git
+git clone git@github.com:lutunovoleg1/ANPR.git
+
 ```
 3. Install the dependencies from the file requirements.txt:
 ```
